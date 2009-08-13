@@ -44,7 +44,7 @@ var Tagomatic = new Class({
   },
   
   toHTML: function() {
-    var str = this.doctype + "\n" + this.htmlString; str.isHTML = true; return str;
+    var str = this.doctype + "\n" + this.htmlString + "\n"; str.isHTML = true; return str;
   },
   
   toPartialHTML: function() { var str = ''+this.htmlString; str.isHTML = true; return str; },
@@ -76,7 +76,7 @@ var Tagomatic = new Class({
   
   // adds some text to the document
   text: function() {
-    $A(arguments).each(function(arg) { this.htmlString += arg.html ? arg.html : this.escapeHTML(arg); });
+    $A(arguments).each(function(arg) { this.htmlString += arg.html ? arg.html : this.escapeHTML(arg); }, this);
   },
   
   // escapes some text to work inside of html

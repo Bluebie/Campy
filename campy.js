@@ -3,7 +3,7 @@ var Helpers = {
 };
 
 var Controller = new Class({
-  defaultHeaders: {'Content-Type': 'text/html;charset=utf-8'},
+  defaultHeaders: {'Content-Type': 'text/html; charset=utf-8'},
   
   // create new controller with a particular regexp and a hash of http methods
   initialize: function(tester, methods) {
@@ -19,7 +19,7 @@ var Controller = new Class({
     var copy = $unlink(this);
     copy.request = request;
     copy.input = request.uri.params;
-    var originalCookies = copy.cookies = copy.readCookies();
+    var originalCookies = $unlink(copy.cookies = $H(copy.readCookies()));
     copy.response = response; copy.body = '';
     copy.headers = $H(this.defaultHeaders); copy.status = 200;
     if (Controller.prototype[method] || method.test(/^_/)) method = 'methodIlligal';
@@ -27,21 +27,26 @@ var Controller = new Class({
     if (!copy.response.finished) {
       var body = (returned || copy.body || '').toString();
       copy.headers['Content-Length'] = body.length.toString();
-      var headers = copy.headers.map(function(vals, key) {
-        return $A(vals).flatten().map(function(val) { return [key.toString(), val.toString]; });
-      }).getValues();
+      
+      // transcribe headers
+      var headers = [];
+      copy.headers.each(function(vals, key) {
+        [vals].flatten().each(function(val) {
+          headers.push([key.toString(), val.toString()]);
+        });
+      });
       
       // set any cookies that need setting
-      Hash.each(copy.cookies, function(value, name) {
-        if (originalCookies[name] != value) {
-          if ($type(value) != 'object') value = {value: value, path: '/'};
+      copy.cookies.each(function(value, name) {
+        if (!originalCookies[name] || originalCookies[name] != value) {
+          if ($type(value) != 'object') value = {value: value.toString(), path: '/'};
+          if ($type(value.value) == false) { value.expires = new Date(0); value.value = ''; }
           var cookie = name + '=' + encodeURIComponent(value.value.toString());
           if (value.path) cookie += '; path=' + value.path;
           if (value.domain) cookie += '; domain=' + value.domain;
           if (value.expires) cookie += '; expires=' + (value.expires.toGMTString || value.expires.toString)();
           if (value.secure) cookie += '; secure';
           if (value.httponly) cookie += '; httponly';
-          
           headers.push(['Set-Cookie', cookie]);
         }
       });
@@ -54,14 +59,12 @@ var Controller = new Class({
   
   readCookies: function() {
     var cookies = {};
-    this.request.headers.each(function(header) {
-      if (header[0].toLowerCase() == 'cookie') {
-        var pairs = header[1].split(/(;|,)/g);
-        pairs.each(function(pair) {
-          pair = pair.split('=');
-          cookies[unescape(pair[0])] = unescape(pair[1]);
-        });
-      }
+    this.getRequestHeaders('Cookie').each(function(cookie) {
+      var pairs = cookie.split(/(;|,)/g);
+      pairs.each(function(pair) {
+        pair = pair.split('=');
+        cookies[pair[0].toString().trim()] = unescape(pair[1]);
+      });
     });
     return cookies;
   },
@@ -85,12 +88,33 @@ var Controller = new Class({
     return (this.body = Views.render('layout', [tago, body]).toHTML());
   },
   
+  getRequestHeaders: function(name) {
+    var headers = {}, name = name.toLowerCase();
+    return this.request.headers.filter(function(header) {
+      return header[0].toLowerCase() == name;
+    }).map(function(header) {
+      return header[1];
+    });
+  },
+  
+  getURI: function() {
+    var host = this.getRequestHeaders('Host')[0];
+    if (host) return new URI('http://' + host + this.request.uri);
+    else return new URI(this.request.uri.toString());
+  },
+  
+  redirect: function(uri) {
+    var base = this.getURI();
+    this.status = 302;
+    this.headers.Location = (new URI(uri, {base: base})).toString();
+  },
+  
   methodIlligal: function(components) {
-    this.status = 401; return 'The requested method is not allowed';
+    this.status = 404; return 'The requested method is not allowed';
   },
   
   methodNotAvailable: function(components) {
-    this.status = 401; return 'The requested http method is unavailable';
+    this.status = 404; return 'The requested http method is unavailable';
   }
 });
 
