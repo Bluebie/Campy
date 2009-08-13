@@ -1,0 +1,1 @@
+Campy is a little itsy bitsy web framework for the Node.JS server system, providing url routing, helpers, a html5 builder similar in design to Markaby and view module, and eventually will also be able to encode and decode cookies, and even provide sessions.

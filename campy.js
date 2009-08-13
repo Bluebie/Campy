@@ -18,6 +18,8 @@ var Controller = new Class({
     var method = request.method.toLowerCase();
     var copy = $unlink(this);
     copy.request = request;
+    copy.input = request.uri.params;
+    var originalCookies = copy.cookies = copy.readCookies();
     copy.response = response; copy.body = '';
     copy.headers = $H(this.defaultHeaders); copy.status = 200;
     if (Controller.prototype[method] || method.test(/^_/)) method = 'methodIlligal';
@@ -25,11 +27,43 @@ var Controller = new Class({
     if (!copy.response.finished) {
       var body = (returned || copy.body || '').toString();
       copy.headers['Content-Length'] = body.length.toString();
-      var headers = copy.headers.map(function(val, key) { return [key.toString(), val.toString()]; }).getValues()
+      var headers = copy.headers.map(function(vals, key) {
+        return $A(vals).flatten().map(function(val) { return [key.toString(), val.toString]; });
+      }).getValues();
+      
+      // set any cookies that need setting
+      Hash.each(copy.cookies, function(value, name) {
+        if (originalCookies[name] != value) {
+          if ($type(value) != 'object') value = {value: value, path: '/'};
+          var cookie = name + '=' + encodeURIComponent(value.value.toString());
+          if (value.path) cookie += '; path=' + value.path;
+          if (value.domain) cookie += '; domain=' + value.domain;
+          if (value.expires) cookie += '; expires=' + (value.expires.toGMTString || value.expires.toString)();
+          if (value.secure) cookie += '; secure';
+          if (value.httponly) cookie += '; httponly';
+          
+          headers.push(['Set-Cookie', cookie]);
+        }
+      });
+      
       copy.response.sendHeader(copy.status, headers);
       copy.response.sendBody(body);
       copy.response.finish();
     }
+  },
+  
+  readCookies: function() {
+    var cookies = {};
+    this.request.headers.each(function(header) {
+      if (header[0].toLowerCase() == 'cookie') {
+        var pairs = header[1].split(/(;|,)/g);
+        pairs.each(function(pair) {
+          pair = pair.split('=');
+          cookies[unescape(pair[0])] = unescape(pair[1]);
+        });
+      }
+    });
+    return cookies;
   },
   
   render: function() {
