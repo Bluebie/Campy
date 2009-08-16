@@ -22,7 +22,7 @@ var Controller = new Class({
     var originalCookies = $unlink(copy.cookies = $H(copy.readCookies()));
     copy.response = response; copy.body = '';
     copy.headers = $H(this.defaultHeaders); copy.status = 200;
-    if (Controller.prototype[method] || method.test(/^_/)) method = 'methodIlligal';
+    if (Controller.prototype[method] || method.test(/^_/)) method = 'methodIllegal';
     var returned = (copy[method] || copy.methodNotAvailable).run(args, copy);
     if (!copy.response.finished) {
       var body = (returned || copy.body || '').toString();
@@ -109,7 +109,7 @@ var Controller = new Class({
     this.headers.Location = (new URI(uri, {base: base})).toString();
   },
   
-  methodIlligal: function(components) {
+  methodIllegal: function(components) {
     this.status = 404; return 'The requested method is not allowed';
   },
   
