@@ -1,1 +1,25 @@
-Campy is a little itsy bitsy web framework for the Node.JS server system, providing url routing, helpers, a html5 builder similar in design to Markaby and view module, and eventually will also be able to encode and decode cookies, and even provide sessions.
+Campy is a little itsy bitsy web framework for the Node.JS server system, providing url routing, helpers, a html5 builder similar in design to Markaby and view module, cookie support, and eventually, cookie based signed session handling.
+
+This little critter has been inspired by the mythical Why The Lucky Stiff’s “Camping” framework for ruby, as well as Markaby. It does not aim to be a direct clone however, and diverges in many ways. The aim is that it will be familiar to Camping and Markaby users, while making the best API decisions possible given the javascript environment.
+
+Of particular note, one line in the mootools more included with this, is modified, to make it compatible with DOM-less environments (such as node). The issue was with the base URI.
+
+Of exceptional note, Campy makes use of my load() function for dependancy loading, as defined here:
+
+process.window = process;
+
+// loads files simply
+process.prependLoadString = '';
+var alreadyLoaded = [];
+process.load = function(file) {
+  var file = prependLoadString + file;
+  if (alreadyLoaded.indexOf(file) != -1) return;
+  alreadyLoaded.push(file);
+
+  var prevLoadString = prependLoadString;
+  process.prependLoadString = file.slice(0, file.lastIndexOf('/') + 1);
+  process.eval('with (process) {\n' + node.fs.cat(file).wait() + "\n}");
+  process.prependLoadString = prevLoadString;
+}
+
+load('Campy/campy.js');

@@ -1,38 +1,69 @@
+// Requires: mootools-1.2.3-core-server.js, mootools-1.2.3.1-more.js, sha256.js, tago.js
+load('mootools-1.2.3-core-server.js');
+load('mootools-1.2.3.1-more.js');
+load('sha256.js');
+load('tago.js');
+
 var Helpers = {
 
 };
 
 var Controller = new Class({
-  defaultHeaders: {'Content-Type': 'text/html; charset=utf-8'},
+  defaultHeaders: {'Content-Type': 'text/html;charset=utf-8'},
+  before: [],
+  after: [],
   
   // create new controller with a particular regexp and a hash of http methods
   initialize: function(tester, methods) {
     if ($type(this.tester) != 'regexp') this.tester = new RegExp('^' + tester.toString().escapeRegExp() + '$');
     else this.tester = tester;
     $extend(this, Helpers);
-    $extend(this, methods);
+    
+    var self = this;
+    var filteredMethods = new Hash(methods);
+    filteredMethods.each(function(value, key) {
+      if ('Use' == key) {
+        [value].flatten().each(function(use) {
+          if ($type(use) == 'string') use = Controller.Usables[use];
+          if (use.before) self.before.push(use.before);
+          if (use.after)  self.after.unshift(use.after);
+        });
+        filteredMethods.erase(key);
+      }
+    });
+    Hash.extend(this, filteredMethods);
+    
+    this.render.__view__ = function() { return self.renderView.run(arguments, self.copy); }
   },
   
   // handles a request
   service: function(args, request, response) {
     var method = request.method.toLowerCase();
-    var copy = $unlink(this);
+    var copy = this.copy = $unlink(this);
     copy.request = request;
     copy.input = request.uri.params;
     var originalCookies = $unlink(copy.cookies = $H(copy.readCookies()));
     copy.response = response; copy.body = '';
     copy.headers = $H(this.defaultHeaders); copy.status = 200;
     if (Controller.prototype[method] || method.test(/^_/)) method = 'methodIllegal';
-    var returned = (copy[method] || copy.methodNotAvailable).run(args, copy);
+    
+    copy.before.push(copy[method] || copy.methodNotAvailable);
+    var returned = null;
+    for (var i = 0; i < copy.before.length; i++) {
+      returned = copy.before[i].run(args, copy);
+      if (returned != null || copy.response.finished) break;
+    }
+    if (copy.after.length > 0) copy.after.each(function(i) { i.run(args, copy); });
+    
     if (!copy.response.finished) {
       var body = (returned || copy.body || '').toString();
       copy.headers['Content-Length'] = body.length.toString();
       
       // transcribe headers
-      var headers = [];
+      var weirdHeaders = [];
       copy.headers.each(function(vals, key) {
         [vals].flatten().each(function(val) {
-          headers.push([key.toString(), val.toString()]);
+          weirdHeaders.push([key.toString(), val.toString()]);
         });
       });
       
@@ -42,16 +73,18 @@ var Controller = new Class({
           if ($type(value) != 'object') value = {value: value.toString(), path: '/'};
           if ($type(value.value) == false) { value.expires = new Date(0); value.value = ''; }
           var cookie = name + '=' + encodeURIComponent(value.value.toString());
-          if (value.path) cookie += '; path=' + value.path;
-          if (value.domain) cookie += '; domain=' + value.domain;
+          if (value.comment) cookie += '; Comment=' + value.comment;
+          if (value.domain) cookie += '; Domain=' + value.domain;
+          if (value.maxAge) cookie += '; Max-Age=' + value.maxAge;
+          if (value.path) cookie += '; Path=' + value.path;
           if (value.expires) cookie += '; expires=' + (value.expires.toGMTString || value.expires.toString)();
-          if (value.secure) cookie += '; secure';
+          if (value.secure) cookie += '; Secure';
           if (value.httponly) cookie += '; httponly';
-          headers.push(['Set-Cookie', cookie]);
+          weirdHeaders.push(['Set-Cookie', cookie]);
         }
       });
       
-      copy.response.sendHeader(copy.status, headers);
+      copy.response.sendHeader(copy.status, weirdHeaders);
       copy.response.sendBody(body);
       copy.response.finish();
     }
@@ -59,7 +92,7 @@ var Controller = new Class({
   
   readCookies: function() {
     var cookies = {};
-    this.getRequestHeaders('Cookie').each(function(cookie) {
+    [this.request.headers.Cookie].flatten().each(function(cookie) {
       var pairs = cookie.split(/(;|,)/g);
       pairs.each(function(pair) {
         pair = pair.split('=');
@@ -69,22 +102,23 @@ var Controller = new Class({
     return cookies;
   },
   
-  render: function() {
+  render: {}, // has dynamically added functions to do rendering
+  renderView: function() {
     var args = $A(arguments);
     var view = args.shift();
     var locals = $unlink(this);
     var viewArgs = [];
     
-    args.each(function(arg) {
-      if ($type(arg) == 'object') $extend(locals, arg);
-      else viewArgs.push(arg);
+    var tago = new Tago();
+    //Hash.erase(locals, 'body');
+    Hash.each(locals, function(val, name) {
+      tago['c'+name.capitalize()] = val;
+      if (!tago[name]) tago[name] = val;
     });
-    
-    var tago = new Tagomatic();
-    Hash.erase(locals, 'body');
-    $extend(tago, locals);
-    viewArgs.unshift($unlink(tago));
-    var body = function() { Views.funcs[view].run(viewArgs, viewArgs[0]); };
+    tago.controller = locals;
+    //$extend(tago, locals);
+    args.unshift($unlink(tago));
+    var body = function() { Views.funcs[view].run(args, args[0]); };
     return (this.body = Views.render('layout', [tago, body]).toHTML());
   },
   
@@ -98,7 +132,7 @@ var Controller = new Class({
   },
   
   getURI: function() {
-    var host = this.getRequestHeaders('Host')[0];
+    var host = this.request.headers.Host;
     if (host) return new URI('http://' + host + this.request.uri);
     else return new URI(this.request.uri.toString());
   },
@@ -110,11 +144,11 @@ var Controller = new Class({
   },
   
   methodIllegal: function(components) {
-    this.status = 404; return 'The requested method is not allowed';
+    this.status = 404; return 'The requested method is not allowed.';
   },
   
   methodNotAvailable: function(components) {
-    this.status = 404; return 'The requested http method is unavailable';
+    this.status = 404; return 'The requested http method is unavailable.';
   }
 });
 
@@ -122,7 +156,7 @@ var Controllers = {
   list: [],
   notFound: new Controller('', {
     methodNotAvailable: function() {
-      this.headers.set('Content-Type', 'text/plain');
+      this.headers.set('Content-Type', 'text/plain'); this.status = '404';
       return 'There is no content at ' + this.request.uri.path + '.';
     }
   }),
@@ -140,8 +174,67 @@ var Controllers = {
   }
 };
 
+// Usables are special modules you can add to your controller to add extra functionality
+Controller.Usables = {}
+Controller.Usables.CookieSessions = {
+  key1: false, // these two keys maintain the security of the session, they have to be absolutely unique to your application. Set them to custom strings if you wish for Bonus Security Points
+  key2: false,
+  
+  signer: function(str) {
+    if (!Controller.Usables.CookieSessions.key1)
+      Controller.Usables.CookieSessions.key1 = Hash.getKeys(Views.funcs).join('');
+    if (!Controller.Usables.CookieSessions.key2)
+      Controller.Usables.CookieSessions.key2 = Controllers.list.length.toString() + Controllers.list.map(function(i) { return i.tester.source; }).join('');
+    
+    return SHA256(Controller.Usables.CookieSessions.key1 + SHA256(Controller.Usables.CookieSessions.key2 + str));
+  },
+  
+  before: function() {
+    this.state = {};
+    if (this.cookies.state) {
+      if (Controller.Usables.CookieSessions.signer(this.cookies.state) == this.cookies.stateSig) {
+        this.state = JSON.parse(this.cookies.state);
+      } else {
+        Hash.erase(this.cookies, 'state'); Hash.erase(this.cookies, 'stateSig');
+        node.debug('Session signature invalid, ignoring');
+      }
+    }
+  },
+  
+  after: function() {
+    var state = JSON.stringify(this.state);
+    if (this.cookies.state != state) {
+      node.debug(state);
+      node.debug(this.cookies.state || '');
+      this.cookies.state = state;
+      this.cookies.stateSig = Controller.Usables.CookieSessions.signer(state);
+    }
+  }
+};
+
+
 var Views = {
-  funcs: {layout: function(t, body) {
+  funcs: new Hash(),
+  
+  render: function(view, args) {
+    Views.funcs[view].run(args, args[0]);
+    return args[0];
+  },
+  
+  add: function(views) {
+    $extend(Views.funcs, views);
+    Hash.getKeys(views).each(function(funcName) {
+      Controller.prototype.render[funcName] = function() {
+        var args = $A(arguments);
+        args.unshift(funcName);
+        return this.__view__.run(args);
+      };
+    });
+  },
+}
+
+Views.add({
+  layout: function(t, body) {
     t.html(function() {
       t.head(function() {
         t.title('Hiya World!');
@@ -150,12 +243,5 @@ var Views = {
       });
       t.body(body);
     });
-  }},
-  
-  render: function(view, args) {
-    Views.funcs[view].run(args, args[0]);
-    return args[0];
-  },
-  
-  add: function(views) { $extend(Views.funcs, views); },
-}
+  }
+});

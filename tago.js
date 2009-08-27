@@ -1,13 +1,14 @@
 // Note: Tags list generated off html5 spec by running the following in web inspector
 // var n = $$('h4 dfn code'); var a = []; for (var i = 0; i < n.length; i++) { if ((n[i].parentNode.nextSibling || {}).textContent == ' element') a.push(n[i].textContent.toLowerCase()) }; a;
 // list of empty tags pinched from Markaby's self closing list. :)
+// Requires: mootools-1.2.3-core-server.js
+load('mootools-1.2.3-core-server.js');
 
-var Tagomatic = new Class({
+var Tago = new Class({
   doctype: '<!DOCTYPE html>',
   tags: ["html", "head", "title", "base", "link", "meta", "style", "script", "noscript", "body", "section", "nav", "article", "aside", "hgroup", "header", "footer", "address", "p", "hr", "br", "pre", "dialog", "blockquote", "ol", "ul", "li", "dl", "dt", "dd", "a", "q", "cite", "em", "strong", "small", "mark", "dfn", "abbr", "time", "progress", "meter", "code", "var", "samp", "kbd", "span", "i", "b", "bdo", "ruby", "rt", "rp", "ins", "del", "figure", "img", "iframe", "embed", "object", "param", "video", "audio", "source", "canvas", "map", "area", "table", "caption", "colgroup", "col", "tbody", "thead", "tfoot", "tr", "td", "th", "form", "fieldset", "label", "input", "button", "select", "datalist", "optgroup", "option", "textarea", "keygen", "output", "details", "command", "bb", "menu", "legend", "div", "applet", "marquee"],
   empty: ['base', 'meta', 'link', 'hr', 'br', 'param', 'img', 'area', 'input', 'col'],
   htmlString: '',
-  escapeThese: {'<': '&lt;', '>': '&gt;', '"': '&quot;'},
   
   initialize: function() {
     var self = this;
@@ -24,6 +25,10 @@ var Tagomatic = new Class({
       if (i.isAttribute) {
         self.htmlString += ' ' + i.toString();
         return false;
+      } else if ($type(i) == 'object') { // simpler syntax
+        Hash.each(i, function(val, attr) {
+          self.htmlString += ' ' + self.attr(attr, val).toString();
+        });
       } else return true;
     });
     this.htmlString += '>'
@@ -31,16 +36,16 @@ var Tagomatic = new Class({
     if (!this.empty.contains(tagName)) {
       if (attribs.length > 0) {
         attribs.each(function(bit) {
-          if ($type(bit) == 'function') bit.run([this], this);
-          else if ($type(bit) == 'string') this.htmlString += bit.html ? bit.html : this.escapeHTML(bit);
-        }, this);
+          if ($type(bit) == 'function') bit.run([self], self);
+          else if ($type(bit) == 'string') self.htmlString += bit.html ? bit.html : self.escapeHTML(bit);
+        });
       }
       this.htmlString += '</' + tagName + '>';
     }
   },
   
   comment: function(text) {
-    this.htmlString += '<!--' + text + '-->'
+    this.htmlString += '<!--' + this.escapeHTML(text) + '-->'
   },
   
   toHTML: function() {
@@ -81,10 +86,14 @@ var Tagomatic = new Class({
   
   // escapes some text to work inside of html
   escapeHTML: function(text) {
-    return text;
-    if (!this.escapeRegexp) this.escapeRegexp = new RegExp(Hash.getKeys(this.escapeThese).map(function(i) { return i.escapeRegExp(); }).join('|'), 'g');
+    var escapeThese = {'<': '&lt;', '>': '&gt;', '"': '&quot;'};
+    if (!this.escapeRegexp) {
+      this.escapeRegexp = new RegExp(Hash.getKeys(escapeThese).map(function(i) {
+        return i.escapeRegExp();
+      }).join('|'), 'g');
+    }
     var self = this;
-    return text.replace(this.escapeRegexp, function(chr) { return self.escapeThese[chr]; });
+    return text.replace(this.escapeRegexp, function(chr) { return escapeThese[chr.toString()] || chr.toString(); });
   }
 });
 
