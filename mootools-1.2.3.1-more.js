@@ -24,7 +24,7 @@ Script: MooTools.Lang.js
 		},
 		cascades: ['en-US']
 	};
-	
+
 	var cascaded;
 
 	MooTools.lang = new Events();
@@ -395,14 +395,14 @@ Date.implement({
 	},
 
 	getDayOfYear: function(){
-		return (Date.UTC(this.get('year'), this.get('mo'), this.get('date') + 1) 
+		return (Date.UTC(this.get('year'), this.get('mo'), this.get('date') + 1)
 			- Date.UTC(this.get('year'), 0, 1)) / Date.units.day();
 	},
 
 	getWeek: function(){
 		return (this.get('dayofyear') / 7).ceil();
 	},
-	
+
 	getOrdinal: function(day){
 		return Date.getMsg('ordinal', day || this.get('date'));
 	},
@@ -577,11 +577,11 @@ Date.extend({
 
 	parseUTC: function(value){
 		var localDate = new Date(value);
-		var utcSeconds = Date.UTC(localDate.get('year'), 
+		var utcSeconds = Date.UTC(localDate.get('year'),
 		localDate.get('mo'),
-		localDate.get('date'), 
-		localDate.get('hr'), 
-		localDate.get('min'), 
+		localDate.get('date'),
+		localDate.get('hr'),
+		localDate.get('min'),
 		localDate.get('sec'));
 		return new Date(utcSeconds);
 	},
@@ -599,15 +599,15 @@ Date.extend({
 	},
 
 	parsePatterns: [],
-	
+
 	defineParser: function(pattern){
 		Date.parsePatterns.push( pattern.re && pattern.handler ? pattern : build(pattern) );
 	},
-	
+
 	defineParsers: function(){
 		Array.flatten(arguments).each(Date.defineParser);
 	},
-	
+
 	define2DigitYearStart: function(year){
 		yr_start = year % 100;
 		yr_base = year - yr_start;
@@ -651,7 +651,7 @@ var lang;
 
 var build = function(format){
 	if (!lang) return {format: format}; // wait until language is set
-	
+
 	var parsed = [null];
 
 	var re = (format.source || format) // allow format to be regex
@@ -766,7 +766,7 @@ Date.extend({
 	getTimePhrase: function(delta){
 		var suffix = (delta < 0) ? 'Until' : 'Ago';
 		if (delta < 0) delta *= -1;
-		
+
 		var msg = (delta < 60) ? 'lessThanMinute' :
 				  (delta < 120) ? 'minute' :
 				  (delta < (45 * 60)) ? 'minutes' :
@@ -774,13 +774,13 @@ Date.extend({
 				  (delta < (24 * 60 * 60)) ? 'hours' :
 				  (delta < (48 * 60 * 60)) ? 'day' :
 				  'days';
-		
+
 		switch(msg){
 			case 'minutes': delta = (delta / 60).round(); break;
 			case 'hours':   delta = (delta / 3600).round(); break;
 			case 'days': 	delta = (delta / 86400).round();
 		}
-		
+
 		return Date.getMsg(msg + suffix, delta).substitute({delta: delta});
 	}
 
@@ -874,7 +874,7 @@ Script: String.Extras.js
 */
 
 (function(){
-  
+
 var special = ['À','à','Á','á','Â','â','Ã','ã','Ä','ä','Å','å','Ă','ă','Ą','ą','Ć','ć','Č','č','Ç','ç', 'Ď','ď','Đ','đ', 'È','è','É','é','Ê','ê','Ë','ë','Ě','ě','Ę','ę', 'Ğ','ğ','Ì','ì','Í','í','Î','î','Ï','ï', 'Ĺ','ĺ','Ľ','ľ','Ł','ł', 'Ñ','ñ','Ň','ň','Ń','ń','Ò','ò','Ó','ó','Ô','ô','Õ','õ','Ö','ö','Ø','ø','ő','Ř','ř','Ŕ','ŕ','Š','š','Ş','ş','Ś','ś', 'Ť','ť','Ť','ť','Ţ','ţ','Ù','ù','Ú','ú','Û','û','Ü','ü','Ů','ů', 'Ÿ','ÿ','ý','Ý','Ž','ž','Ź','ź','Ż','ż', 'Þ','þ','Ð','ð','ß','Œ','œ','Æ','æ','µ'];
 
 var standard = ['A','a','A','a','A','a','A','a','Ae','ae','A','a','A','a','A','a','C','c','C','c','C','c','D','d','D','d', 'E','e','E','e','E','e','E','e','E','e','E','e','G','g','I','i','I','i','I','i','I','i','L','l','L','l','L','l', 'N','n','N','n','N','n', 'O','o','O','o','O','o','O','o','Oe','oe','O','o','o', 'R','r','R','r', 'S','s','S','s','S','s','T','t','T','t','T','t', 'U','u','U','u','U','u','Ue','ue','U','u','Y','y','Y','y','Z','z','Z','z','Z','z','TH','th','DH','dh','ss','OE','oe','AE','ae','u'];
@@ -1087,9 +1087,9 @@ var URI = new Class({
 	},
 
 	setData: function(values, merge, part){
-		if ($type(arguments[0]) == 'string'){ 
-			values = this.getData(); 
-			values[arguments[0]] = arguments[1]; 
+		if ($type(arguments[0]) == 'string'){
+			values = this.getData();
+			values[arguments[0]] = arguments[1];
 		} else if (merge) {
 			values = $merge(this.getData(), values);
 		}

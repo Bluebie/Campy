@@ -9,14 +9,14 @@ var Tago = new Class({
   tags: ["html", "head", "title", "base", "link", "meta", "style", "script", "noscript", "body", "section", "nav", "article", "aside", "hgroup", "header", "footer", "address", "p", "hr", "br", "pre", "dialog", "blockquote", "ol", "ul", "li", "dl", "dt", "dd", "a", "q", "cite", "em", "strong", "small", "mark", "dfn", "abbr", "time", "progress", "meter", "code", "var", "samp", "kbd", "span", "i", "b", "bdo", "ruby", "rt", "rp", "ins", "del", "figure", "img", "iframe", "embed", "object", "param", "video", "audio", "source", "canvas", "map", "area", "table", "caption", "colgroup", "col", "tbody", "thead", "tfoot", "tr", "td", "th", "form", "fieldset", "label", "input", "button", "select", "datalist", "optgroup", "option", "textarea", "keygen", "output", "details", "command", "bb", "menu", "legend", "div", "applet", "marquee"],
   empty: ['base', 'meta', 'link', 'hr', 'br', 'param', 'img', 'area', 'input', 'col'],
   htmlString: '',
-  
+
   initialize: function() {
     var self = this;
     this.tags.each(function(tagName) {
       self[tagName] = function() { self.tag.run([tagName, $A(arguments)], self); };
     });
   },
-  
+
   tag: function() {
     var attribs = $A(arguments).flatten(), tagName = 'tag', self = this;
     if ($type(attribs[0]) == 'string') tagName = attribs.shift().toLowerCase();
@@ -32,7 +32,7 @@ var Tago = new Class({
       } else return true;
     });
     this.htmlString += '>'
-    
+
     if (!this.empty.contains(tagName)) {
       if (attribs.length > 0) {
         attribs.each(function(bit) {
@@ -43,17 +43,17 @@ var Tago = new Class({
       this.htmlString += '</' + tagName + '>';
     }
   },
-  
+
   comment: function(text) {
     this.htmlString += '<!--' + this.escapeHTML(text) + '-->'
   },
-  
+
   toHTML: function() {
     var str = this.doctype + "\n" + this.htmlString + "\n"; str.isHTML = true; return str;
   },
-  
+
   toPartialHTML: function() { var str = ''+this.htmlString; str.isHTML = true; return str; },
-  
+
   // creates an attribute, which can be used as an argument to tag();
   attr: function(name, value) {
     var self = this;
@@ -63,27 +63,27 @@ var Tago = new Class({
       return str;
     }};
   },
-  
+
   // for boolean attributes like 'selected'
   booleanAttr: function(name, test) {
     return test ? this.attr(name, false) : null;
   },
-  
+
   // creates a whole bunch of attributes from a hash
   attrs: function(attributes) {
     return Hash.map(attributes, function(val, key) { this.attr(key, val) });
   },
-  
+
   // wraps a string so it wont be escaped, for raw html
   raw: function(html) {
     return {html: html};
   },
-  
+
   // adds some text to the document
   text: function() {
     $A(arguments).each(function(arg) { this.htmlString += arg.html ? arg.html : this.escapeHTML(arg); }, this);
   },
-  
+
   // escapes some text to work inside of html
   escapeHTML: function(text) {
     var escapeThese = {'<': '&lt;', '>': '&gt;', '"': '&quot;'};
